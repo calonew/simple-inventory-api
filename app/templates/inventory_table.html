@@ -1,0 +1,34 @@
+<table class="w-full bg-white shadow rounded text-left text-sm">
+  <thead class="bg-gray-100 text-gray-600">
+    <tr>
+      <th class="p-3">Machine</th>
+      <th class="p-3">Location</th>
+      <th class="p-3">Product</th>
+      <th class="p-3">Price</th>
+      <th class="p-3">Quantity</th>
+      <th class="p-3">Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for item, machine in rows %}
+    <tr class="border-t {% if item.quantity < low_stock_limit %}bg-red-50{% endif %}">
+      <td class="p-3">{{ machine.name }}</td>
+      <td class="p-3">{{ machine.location }}</td>
+      <td class="p-3">{{ item.product.name }}</td>
+      <td class="p-3">${{ "%.2f"|format(item.product.price) }}</td>
+      <td class="p-3">{{ item.quantity }}</td>
+      <td class="p-3">
+        {% if item.quantity < low_stock_limit %}
+        <span class="text-red-700 font-medium">Low Stock</span>
+        {% else %}
+        <span class="text-green-700">OK</span>
+        {% endif %}
+      </td>
+    </tr>
+    {% else %}
+    <tr>
+      <td colspan="6" class="p-3 text-gray-500">No inventory yet.</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>

@@ -1,4 +1,7 @@
-from fastapi import Depends, FastAPI, HTTPException
+from pathlib import Path
+
+from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -8,6 +11,7 @@ from app.database import get_db
 LOW_STOCK_LIMIT = 5
 
 app = FastAPI(title="Simple Inventory API")
+templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
 
 
 async def get_machine_or_404(db: AsyncSession, machine_id: int) -> models.Machine:
@@ -138,3 +142,24 @@ async def low_stock(machine_id: int | None = None, db: AsyncSession = Depends(ge
         query = query.filter_by(machine_id=machine_id)
     result = await db.execute(query)
     return result.scalars().all()
+
+
+async def inventory_rows(db: AsyncSession):
+    result = await db.execute(
+        select(models.Inventory, models.Machine)
+        .join(models.Machine, models.Machine.id == models.Inventory.machine_id)
+        .order_by(models.Machine.id, models.Inventory.product_id)
+    )
+    return result.all()
+
+
+@app.get("/dashboard", include_in_schema=False)
+async def dashboard(request: Request, db: AsyncSession = Depends(get_db)):
+    context = {"rows": await inventory_rows(db), "low_stock_limit": LOW_STOCK_LIMIT}
+    return templates.TemplateResponse(request, "dashboard.html", context)
+
+
+@app.get("/dashboard/table", include_in_schema=False)
+async def dashboard_table(request: Request, db: AsyncSession = Depends(get_db)):
+    context = {"rows": await inventory_rows(db), "low_stock_limit": LOW_STOCK_LIMIT}
+    return templates.TemplateResponse(request, "inventory_table.html", context)
