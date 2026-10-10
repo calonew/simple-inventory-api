@@ -1,6 +1,7 @@
 fastapi
 uvicorn
-sqlalchemy
+sqlalchemy[asyncio]
 pydantic
 pytest
 httpx
+aiosqlite
