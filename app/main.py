@@ -18,6 +18,20 @@ def get_machine_or_404(db: Session, machine_id: int) -> models.Machine:
     return machine
 
 
+def get_inventory_item_or_404(
+    db: Session, machine_id: int, product_id: int
+) -> models.Inventory:
+    get_machine_or_404(db, machine_id)
+    item = (
+        db.query(models.Inventory)
+        .filter_by(machine_id=machine_id, product_id=product_id)
+        .first()
+    )
+    if item is None:
+        raise HTTPException(status_code=404, detail="Inventory item not found")
+    return item
+
+
 @app.get("/machines", response_model=list[schemas.MachineOut])
 def list_machines(db: Session = Depends(get_db)):
     return db.query(models.Machine).all()
@@ -98,14 +112,7 @@ def update_inventory(
     data: schemas.InventoryUpdate,
     db: Session = Depends(get_db),
 ):
-    get_machine_or_404(db, machine_id)
-    item = (
-        db.query(models.Inventory)
-        .filter_by(machine_id=machine_id, product_id=product_id)
-        .first()
-    )
-    if item is None:
-        raise HTTPException(status_code=404, detail="Inventory item not found")
+    item = get_inventory_item_or_404(db, machine_id, product_id)
 
     item.quantity = data.quantity
     db.commit()
@@ -115,14 +122,7 @@ def update_inventory(
 
 @app.delete("/machines/{machine_id}/inventory/{product_id}", status_code=204)
 def delete_inventory(machine_id: int, product_id: int, db: Session = Depends(get_db)):
-    get_machine_or_404(db, machine_id)
-    item = (
-        db.query(models.Inventory)
-        .filter_by(machine_id=machine_id, product_id=product_id)
-        .first()
-    )
-    if item is None:
-        raise HTTPException(status_code=404, detail="Inventory item not found")
+    item = get_inventory_item_or_404(db, machine_id, product_id)
 
     db.delete(item)
     db.commit()
