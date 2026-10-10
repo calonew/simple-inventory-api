@@ -183,3 +183,43 @@ def test_add_inventory_to_missing_machine_returns_404(client):
     )
     assert response.status_code == 404
 
+
+def test_delete_inventory_item(client):
+    machine_id = create_machine(client)
+    product_id = create_product(client)
+    client.post(
+        f"/machines/{machine_id}/inventory",
+        json={"product_id": product_id, "quantity": 10},
+    )
+
+    response = client.delete(f"/machines/{machine_id}/inventory/{product_id}")
+    assert response.status_code == 204
+
+    assert client.get(f"/machines/{machine_id}/inventory").json() == []
+
+
+def test_delete_inventory_keeps_the_product(client):
+    machine_id = create_machine(client)
+    product_id = create_product(client)
+    client.post(
+        f"/machines/{machine_id}/inventory",
+        json={"product_id": product_id, "quantity": 10},
+    )
+
+    client.delete(f"/machines/{machine_id}/inventory/{product_id}")
+
+    products = client.get("/products").json()
+    assert [product["id"] for product in products] == [product_id]
+
+
+def test_delete_inventory_from_missing_machine_returns_404(client):
+    response = client.delete("/machines/999/inventory/1")
+    assert response.status_code == 404
+
+
+def test_delete_missing_inventory_item_returns_404(client):
+    machine_id = create_machine(client)
+    product_id = create_product(client)
+
+    response = client.delete(f"/machines/{machine_id}/inventory/{product_id}")
+    assert response.status_code == 404
