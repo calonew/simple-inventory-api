@@ -1,8 +1,12 @@
+import asyncio
+import sqlite3
+
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
+from app import database
 from app.database import Base, get_db
 from app.main import app
 
@@ -224,3 +228,28 @@ def test_delete_missing_inventory_item_returns_404(client):
 
     response = client.delete(f"/machines/{machine_id}/inventory/{product_id}")
     assert response.status_code == 404
+
+
+def test_data_is_stored_in_the_test_database(client, tmp_path):
+    create_machine(client)
+
+    with sqlite3.connect(tmp_path / "test.db") as connection:
+        count = connection.execute("SELECT COUNT(*) FROM machines").fetchone()[0]
+    assert count == 1
+
+
+def test_session_is_closed_after_request(tmp_path, monkeypatch):
+    engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'sessions.db'}")
+    monkeypatch.setattr(database, "SessionLocal", async_sessionmaker(engine))
+
+    async def use_session():
+        sessions = get_db()
+        db = await anext(sessions)
+        await db.execute(text("SELECT 1"))
+        was_open = db.in_transaction()
+        await sessions.aclose()
+        return was_open, db.in_transaction()
+
+    was_open, still_open = asyncio.run(use_session())
+    assert was_open is True
+    assert still_open is False
