@@ -17,7 +17,8 @@ SQLAlchemy.
 
 - Python 3.11+
 - FastAPI
-- SQLAlchemy with SQLite
+- SQLAlchemy (async) with SQLite
+- Alembic for database migrations
 - Pydantic
 - pytest
 
@@ -29,14 +30,29 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
+## Database migrations
+
+The database schema is managed with Alembic. Create or update the SQLite
+database (`inventory.db`) before starting the API:
+
+```bash
+alembic upgrade head
+```
+
+To undo the most recent migration:
+
+```bash
+alembic downgrade -1
+```
+
 ## Running the API
 
 ```bash
 uvicorn app.main:app --reload
 ```
 
-The SQLite database file (`inventory.db`) and its tables are created
-automatically on startup.
+The app does not create tables by itself, so run the migration command above
+first.
 
 Interactive API documentation is available at http://127.0.0.1:8000/docs
 
@@ -46,7 +62,8 @@ Interactive API documentation is available at http://127.0.0.1:8000/docs
 pytest
 ```
 
-The tests use a temporary SQLite database, so your real data is not touched.
+The tests create a temporary SQLite database with the Alembic migrations, so
+your real data is not touched.
 
 ## Continuous integration
 
