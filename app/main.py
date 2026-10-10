@@ -1,23 +1,13 @@
-from contextlib import asynccontextmanager
-
 from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import models, schemas
-from app.database import Base, engine, get_db
+from app.database import get_db
 
 LOW_STOCK_LIMIT = 5
 
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    async with engine.begin() as connection:
-        await connection.run_sync(Base.metadata.create_all)
-    yield
-
-
-app = FastAPI(title="Simple Inventory API", lifespan=lifespan)
+app = FastAPI(title="Simple Inventory API")
 
 
 async def get_machine_or_404(db: AsyncSession, machine_id: int) -> models.Machine:
