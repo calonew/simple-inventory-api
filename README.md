@@ -3,15 +3,16 @@
 ![Tests](https://github.com/calonew/simple-inventory-api/actions/workflows/tests.yml/badge.svg)
 
 A small REST API for tracking the inventory of vending machines. It is a
-learning/portfolio project that demonstrates the basics of FastAPI and
-SQLAlchemy.
+personal portfolio project for practicing Python backend development with
+FastAPI and SQLAlchemy.
 
-## What it does
+## Features
 
 - Manage vending machines (list, add, view)
 - Manage products (list, add)
-- Assign products to machines and track the quantity in each machine
+- Assign products to machines, update quantities, and remove them
 - List products that are running low (quantity below 5), optionally for one machine
+- A simple HTML dashboard showing the inventory of all machines
 
 ## Technologies
 
@@ -20,6 +21,7 @@ SQLAlchemy.
 - SQLAlchemy (async) with SQLite
 - Alembic for database migrations
 - Pydantic
+- Jinja2, HTMX and Tailwind CSS (loaded from a CDN) for the dashboard
 - pytest
 
 ## Installation
@@ -55,6 +57,13 @@ The app does not create tables by itself, so run the migration command above
 first.
 
 Interactive API documentation is available at http://127.0.0.1:8000/docs
+
+## Dashboard
+
+With the API running, open http://127.0.0.1:8000/dashboard to see every
+product in every machine, with its price, quantity and a Low Stock marker
+(quantity below 5). The Refresh button reloads only the table, using HTMX.
+The page loads Tailwind and HTMX from a CDN, so it needs an internet connection.
 
 ## Running the tests
 
