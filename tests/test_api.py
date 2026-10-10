@@ -289,3 +289,57 @@ def test_migration_can_be_downgraded_and_reapplied(tmp_path):
 
     command.upgrade(config, "head")
     assert {"machines", "products", "inventory"} <= table_names(db_file)
+
+
+def add_stock(client, machine_id, product_id, quantity):
+    client.post(
+        f"/machines/{machine_id}/inventory",
+        json={"product_id": product_id, "quantity": quantity},
+    )
+
+
+def test_dashboard_returns_page(client):
+    response = client.get("/dashboard")
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]
+
+
+def test_dashboard_shows_inventory(client):
+    machine_id = create_machine(client, "Lobby", "Floor 1")
+    cola = create_product(client, "Cola", 1.5)
+    add_stock(client, machine_id, cola, 12)
+
+    html = client.get("/dashboard").text
+
+    assert "Lobby" in html
+    assert "Floor 1" in html
+    assert "Cola" in html
+    assert "$1.50" in html
+    assert "12" in html
+    assert "OK" in html
+    assert "Low Stock" not in html
+
+
+def test_dashboard_marks_low_stock(client):
+    machine_id = create_machine(client)
+    cola = create_product(client, "Cola")
+    chips = create_product(client, "Chips")
+    add_stock(client, machine_id, cola, 3)
+    add_stock(client, machine_id, chips, 5)
+
+    html = client.get("/dashboard").text
+
+    assert html.count("Low Stock") == 1
+    assert html.count(">OK<") == 1
+
+
+def test_dashboard_table_returns_only_the_table(client):
+    machine_id = create_machine(client, "Lobby")
+    cola = create_product(client, "Cola")
+    add_stock(client, machine_id, cola, 2)
+
+    response = client.get("/dashboard/table")
+
+    assert response.status_code == 200
+    assert "Cola" in response.text
+    assert "<html" not in response.text

@@ -6,3 +6,4 @@ pytest
 httpx
 aiosqlite
 alembic
+jinja2

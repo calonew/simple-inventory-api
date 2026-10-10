@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Inventory Dashboard</title>
+  <script src="https://cdn.tailwindcss.com/3.4.16"></script>
+  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+</head>
+<body class="bg-gray-50 text-gray-900">
+  <main class="max-w-4xl mx-auto p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h1 class="text-2xl font-semibold">Vending machine inventory</h1>
+      <button
+        hx-get="/dashboard/table"
+        hx-target="#inventory-table"
+        class="px-3 py-1.5 rounded bg-blue-600 text-white text-sm hover:bg-blue-700">
+        Refresh
+      </button>
+    </div>
+
+    <div id="inventory-table">
+      {% include "inventory_table.html" %}
+    </div>
+  </main>
+</body>
+</html>
