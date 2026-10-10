@@ -1,5 +1,7 @@
 # Simple Inventory API
 
+![Tests](https://github.com/calonew/simple-inventory-api/actions/workflows/tests.yml/badge.svg)
+
 A small REST API for tracking the inventory of vending machines. It is a
 learning/portfolio project that demonstrates the basics of FastAPI and
 SQLAlchemy.
