@@ -143,3 +143,43 @@ def test_missing_records_return_404(client):
 
     response = client.put(f"/machines/{machine_id}/inventory/999", json={"quantity": 1})
     assert response.status_code == 404
+
+
+def test_low_stock_limit_is_below_five(client):
+    machine_id = create_machine(client)
+    empty = create_product(client, "Empty")
+    four = create_product(client, "Four")
+    five = create_product(client, "Five")
+
+    for product_id, quantity in [(empty, 0), (four, 4), (five, 5)]:
+        client.post(
+            f"/machines/{machine_id}/inventory",
+            json={"product_id": product_id, "quantity": quantity},
+        )
+
+    quantities = [item["quantity"] for item in client.get("/low-stock").json()]
+    assert sorted(quantities) == [0, 4]
+
+
+def test_update_with_negative_quantity_is_rejected(client):
+    machine_id = create_machine(client)
+    product_id = create_product(client)
+    client.post(
+        f"/machines/{machine_id}/inventory",
+        json={"product_id": product_id, "quantity": 10},
+    )
+
+    response = client.put(
+        f"/machines/{machine_id}/inventory/{product_id}", json={"quantity": -5}
+    )
+    assert response.status_code == 422
+
+
+def test_add_inventory_to_missing_machine_returns_404(client):
+    product_id = create_product(client)
+
+    response = client.post(
+        "/machines/999/inventory", json={"product_id": product_id, "quantity": 1}
+    )
+    assert response.status_code == 404
+
