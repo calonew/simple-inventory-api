@@ -1,24 +1,28 @@
 import asyncio
 import sqlite3
+from pathlib import Path
 
 import pytest
+from alembic import command
+from alembic.config import Config
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, text
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app import database
-from app.database import Base, get_db
+from app.database import get_db
 from app.main import app
+
+
+ROOT = Path(__file__).resolve().parent.parent
 
 
 @pytest.fixture
 def client(tmp_path):
     db_file = tmp_path / "test.db"
 
-    # tables are created with a plain sync engine, the app uses the async one
-    sync_engine = create_engine(f"sqlite:///{db_file}")
-    Base.metadata.create_all(bind=sync_engine)
-    sync_engine.dispose()
+    # tables come from the Alembic migrations, the app itself uses the async engine
+    command.upgrade(alembic_config_for(db_file), "head")
 
     engine = create_async_engine(f"sqlite+aiosqlite:///{db_file}")
     TestingSession = async_sessionmaker(engine, expire_on_commit=False)
@@ -253,3 +257,35 @@ def test_session_is_closed_after_request(tmp_path, monkeypatch):
     was_open, still_open = asyncio.run(use_session())
     assert was_open is True
     assert still_open is False
+
+
+def alembic_config_for(db_file):
+    config = Config(str(ROOT / "alembic.ini"))
+    config.set_main_option("sqlalchemy.url", f"sqlite:///{db_file}")
+    return config
+
+
+def table_names(db_file):
+    with sqlite3.connect(db_file) as connection:
+        rows = connection.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        return {name for (name,) in rows}
+
+
+def test_migration_creates_tables(tmp_path):
+    db_file = tmp_path / "migrated.db"
+
+    command.upgrade(alembic_config_for(db_file), "head")
+
+    assert {"machines", "products", "inventory"} <= table_names(db_file)
+
+
+def test_migration_can_be_downgraded_and_reapplied(tmp_path):
+    db_file = tmp_path / "migrated.db"
+    config = alembic_config_for(db_file)
+
+    command.upgrade(config, "head")
+    command.downgrade(config, "-1")
+    assert not {"machines", "products", "inventory"} & table_names(db_file)
+
+    command.upgrade(config, "head")
+    assert {"machines", "products", "inventory"} <= table_names(db_file)
