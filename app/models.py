@@ -29,4 +29,4 @@ class Inventory(Base):
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
     quantity = Column(Integer, nullable=False, default=0)
 
-    product = relationship("Product")
+    product = relationship("Product", lazy="joined")
