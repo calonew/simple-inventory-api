@@ -1,9 +1,13 @@
-from pydantic import BaseModel, ConfigDict, Field
+from typing import Annotated
+
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+
+RequiredText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 
 
 class MachineCreate(BaseModel):
-    name: str
-    location: str
+    name: RequiredText
+    location: RequiredText
 
 
 class MachineOut(MachineCreate):

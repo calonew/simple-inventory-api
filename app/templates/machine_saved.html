@@ -1,0 +1,7 @@
+{# The main response is empty, which clears #edit-panel. The rest is swapped out of band. #}
+<div id="machines-list" hx-swap-oob="true">
+  {% include "machines_list.html" %}
+</div>
+<div id="inventory-table" hx-swap-oob="true">
+  {% include "inventory_table.html" %}
+</div>

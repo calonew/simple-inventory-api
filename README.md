@@ -63,6 +63,8 @@ Interactive API documentation is available at http://127.0.0.1:8000/docs
 With the API running, open http://127.0.0.1:8000/dashboard to see every
 product in every machine, with its price, quantity and a Low Stock marker
 (quantity below 5). The Refresh button reloads only the table, using HTMX.
+Each machine has an Edit button that opens a small form to change its name
+and location without reloading the page.
 The page loads Tailwind and HTMX from a CDN, so it needs an internet connection.
 
 ## Running the tests
@@ -131,6 +133,7 @@ curl "http://127.0.0.1:8000/low-stock?machine_id=1"
 | GET    | /machines                                 | List machines                  |
 | POST   | /machines                                 | Add a machine                  |
 | GET    | /machines/{id}                            | Machine details                |
+| PUT    | /machines/{id}                            | Update name and location       |
 | GET    | /products                                 | List products                  |
 | POST   | /products                                 | Add a product                  |
 | GET    | /machines/{id}/inventory                  | Inventory of a machine         |

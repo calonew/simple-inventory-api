@@ -1,0 +1,18 @@
+<ul class="bg-white shadow rounded divide-y text-sm">
+  {% for machine in machines %}
+  <li class="p-3 flex items-center justify-between">
+    <span>
+      <span class="font-medium">{{ machine.name }}</span>
+      <span class="text-gray-500">&middot; {{ machine.location }}</span>
+    </span>
+    <button
+      hx-get="/dashboard/machines/{{ machine.id }}/edit"
+      hx-target="#edit-panel"
+      class="px-2 py-1 rounded border text-blue-700 hover:bg-blue-50">
+      Edit
+    </button>
+  </li>
+  {% else %}
+  <li class="p-3 text-gray-500">No machines yet.</li>
+  {% endfor %}
+</ul>

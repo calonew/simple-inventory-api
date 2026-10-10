@@ -1,7 +1,10 @@
 from pathlib import Path
+from urllib.parse import parse_qs
 
 from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
+from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,6 +21,17 @@ async def get_machine_or_404(db: AsyncSession, machine_id: int) -> models.Machin
     machine = await db.get(models.Machine, machine_id)
     if machine is None:
         raise HTTPException(status_code=404, detail="Machine not found")
+    return machine
+
+
+async def update_machine(
+    db: AsyncSession, machine_id: int, data: schemas.MachineCreate
+) -> models.Machine:
+    machine = await get_machine_or_404(db, machine_id)
+    machine.name = data.name
+    machine.location = data.location
+    await db.commit()
+    await db.refresh(machine)
     return machine
 
 
@@ -52,6 +66,13 @@ async def create_machine(data: schemas.MachineCreate, db: AsyncSession = Depends
 @app.get("/machines/{machine_id}", response_model=schemas.MachineOut)
 async def get_machine(machine_id: int, db: AsyncSession = Depends(get_db)):
     return await get_machine_or_404(db, machine_id)
+
+
+@app.put("/machines/{machine_id}", response_model=schemas.MachineOut)
+async def put_machine(
+    machine_id: int, data: schemas.MachineCreate, db: AsyncSession = Depends(get_db)
+):
+    return await update_machine(db, machine_id, data)
 
 
 @app.get("/products", response_model=list[schemas.ProductOut])
@@ -144,22 +165,67 @@ async def low_stock(machine_id: int | None = None, db: AsyncSession = Depends(ge
     return result.scalars().all()
 
 
-async def inventory_rows(db: AsyncSession):
+async def dashboard_context(db: AsyncSession) -> dict:
     result = await db.execute(
         select(models.Inventory, models.Machine)
         .join(models.Machine, models.Machine.id == models.Inventory.machine_id)
         .order_by(models.Machine.id, models.Inventory.product_id)
     )
-    return result.all()
+    machines = await db.execute(select(models.Machine).order_by(models.Machine.id))
+    return {
+        "rows": result.all(),
+        "machines": machines.scalars().all(),
+        "low_stock_limit": LOW_STOCK_LIMIT,
+    }
 
 
 @app.get("/dashboard", include_in_schema=False)
 async def dashboard(request: Request, db: AsyncSession = Depends(get_db)):
-    context = {"rows": await inventory_rows(db), "low_stock_limit": LOW_STOCK_LIMIT}
+    context = await dashboard_context(db)
     return templates.TemplateResponse(request, "dashboard.html", context)
 
 
 @app.get("/dashboard/table", include_in_schema=False)
 async def dashboard_table(request: Request, db: AsyncSession = Depends(get_db)):
-    context = {"rows": await inventory_rows(db), "low_stock_limit": LOW_STOCK_LIMIT}
+    context = await dashboard_context(db)
     return templates.TemplateResponse(request, "inventory_table.html", context)
+
+
+@app.get("/dashboard/machines/{machine_id}/edit", include_in_schema=False)
+async def edit_machine_form(
+    machine_id: int, request: Request, db: AsyncSession = Depends(get_db)
+):
+    machine = await get_machine_or_404(db, machine_id)
+    context = {"machine": machine, "name": machine.name, "location": machine.location}
+    return templates.TemplateResponse(request, "machine_form.html", context)
+
+
+@app.get("/dashboard/edit-cancel", include_in_schema=False)
+async def cancel_edit():
+    return HTMLResponse("")
+
+
+@app.post("/dashboard/machines/{machine_id}", include_in_schema=False)
+async def save_machine_form(
+    machine_id: int, request: Request, db: AsyncSession = Depends(get_db)
+):
+    # HTMX posts a url-encoded form; reading it by hand avoids python-multipart
+    form = parse_qs((await request.body()).decode())
+    name = form.get("name", [""])[0]
+    location = form.get("location", [""])[0]
+
+    try:
+        data = schemas.MachineCreate(name=name, location=location)
+    except ValidationError:
+        machine = await get_machine_or_404(db, machine_id)
+        context = {
+            "machine": machine,
+            "name": name,
+            "location": location,
+            "error": "Name and location are required.",
+        }
+        return templates.TemplateResponse(request, "machine_form.html", context)
+
+    await update_machine(db, machine_id, data)
+    context = await dashboard_context(db)
+    return templates.TemplateResponse(request, "machine_saved.html", context)
