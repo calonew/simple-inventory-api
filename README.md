@@ -46,6 +46,22 @@ pytest
 
 The tests use a temporary SQLite database, so your real data is not touched.
 
+## Continuous integration
+
+A GitHub Actions workflow (`.github/workflows/tests.yml`) runs the tests
+automatically on every push and pull request, using Python 3.11 on Ubuntu.
+If a test fails, the workflow fails.
+
+## Development approach
+
+New features are written test-first (red, green, refactor):
+
+1. **Red:** write a test for the feature and see it fail.
+2. **Green:** write the simplest code that makes the test pass.
+3. **Refactor:** clean up the code while keeping all tests passing.
+
+The delete-inventory endpoint was added this way.
+
 ## Example requests
 
 ```bash
@@ -72,6 +88,9 @@ curl -X PUT http://127.0.0.1:8000/machines/1/inventory/1 \
 # List inventory of a machine
 curl http://127.0.0.1:8000/machines/1/inventory
 
+# Remove a product from a machine
+curl -X DELETE http://127.0.0.1:8000/machines/1/inventory/1
+
 # Low stock, for all machines or one machine
 curl http://127.0.0.1:8000/low-stock
 curl "http://127.0.0.1:8000/low-stock?machine_id=1"
@@ -89,4 +108,5 @@ curl "http://127.0.0.1:8000/low-stock?machine_id=1"
 | GET    | /machines/{id}/inventory                  | Inventory of a machine         |
 | POST   | /machines/{id}/inventory                  | Add a product to a machine     |
 | PUT    | /machines/{id}/inventory/{product_id}     | Update a quantity              |
+| DELETE | /machines/{id}/inventory/{product_id}     | Remove a product from a machine|
 | GET    | /low-stock                                | Items with quantity below 5    |
