@@ -1,0 +1,33 @@
+<form
+  hx-post="/dashboard/machines/{{ machine.id }}"
+  hx-target="#edit-panel"
+  class="bg-white shadow rounded p-4 mb-4 space-y-3 text-sm">
+  <h2 class="font-semibold">Edit machine {{ machine.id }}</h2>
+
+  {% if error %}
+  <p class="text-red-700">{{ error }}</p>
+  {% endif %}
+
+  <label class="block">
+    Name
+    <input type="text" name="name" value="{{ name }}" required
+           class="mt-1 w-full border rounded p-2">
+  </label>
+  <label class="block">
+    Location
+    <input type="text" name="location" value="{{ location }}" required
+           class="mt-1 w-full border rounded p-2">
+  </label>
+
+  <div class="flex gap-2">
+    <button type="submit" class="px-3 py-1.5 rounded bg-blue-600 text-white hover:bg-blue-700">
+      Save
+    </button>
+    <button type="button"
+            hx-get="/dashboard/edit-cancel"
+            hx-target="#edit-panel"
+            class="px-3 py-1.5 rounded border hover:bg-gray-50">
+      Cancel
+    </button>
+  </div>
+</form>

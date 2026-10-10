@@ -343,3 +343,106 @@ def test_dashboard_table_returns_only_the_table(client):
     assert response.status_code == 200
     assert "Cola" in response.text
     assert "<html" not in response.text
+
+
+def test_update_machine(client):
+    machine_id = create_machine(client, "Lobby", "Floor 1")
+
+    response = client.put(
+        f"/machines/{machine_id}", json={"name": "Cafeteria", "location": "Floor 2"}
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"id": machine_id, "name": "Cafeteria", "location": "Floor 2"}
+    assert client.get(f"/machines/{machine_id}").json()["name"] == "Cafeteria"
+
+
+def test_update_machine_rejects_empty_name(client):
+    machine_id = create_machine(client)
+
+    response = client.put(f"/machines/{machine_id}", json={"name": "", "location": "Floor 2"})
+
+    assert response.status_code == 422
+
+
+def test_update_machine_rejects_empty_location(client):
+    machine_id = create_machine(client)
+
+    response = client.put(f"/machines/{machine_id}", json={"name": "Lobby", "location": "  "})
+
+    assert response.status_code == 422
+
+
+def test_update_missing_machine_returns_404(client):
+    response = client.put("/machines/999", json={"name": "Lobby", "location": "Floor 1"})
+
+    assert response.status_code == 404
+
+
+def test_update_machine_keeps_inventory(client):
+    machine_id = create_machine(client)
+    cola = create_product(client, "Cola")
+    add_stock(client, machine_id, cola, 7)
+
+    client.put(f"/machines/{machine_id}", json={"name": "New name", "location": "New place"})
+
+    items = client.get(f"/machines/{machine_id}/inventory").json()
+    assert len(items) == 1
+    assert items[0]["quantity"] == 7
+    assert items[0]["product"]["name"] == "Cola"
+
+
+def test_edit_form_shows_current_values(client):
+    machine_id = create_machine(client, "Lobby", "Floor 1")
+
+    response = client.get(f"/dashboard/machines/{machine_id}/edit")
+
+    assert response.status_code == 200
+    assert 'value="Lobby"' in response.text
+    assert 'value="Floor 1"' in response.text
+
+
+def test_edit_form_for_missing_machine_returns_404(client):
+    assert client.get("/dashboard/machines/999/edit").status_code == 404
+
+
+def test_dashboard_save_updates_machine(client):
+    machine_id = create_machine(client, "Lobby", "Floor 1")
+    cola = create_product(client, "Cola")
+    add_stock(client, machine_id, cola, 7)
+
+    response = client.post(
+        f"/dashboard/machines/{machine_id}",
+        data={"name": "Cafeteria", "location": "Floor 2"},
+    )
+
+    assert response.status_code == 200
+    assert client.get(f"/machines/{machine_id}").json()["name"] == "Cafeteria"
+    html = client.get("/dashboard").text
+    assert "Cafeteria" in html
+    assert "Floor 2" in html
+    assert "Lobby" not in html
+    assert "Cola" in html
+
+
+def test_dashboard_save_with_empty_name_shows_error(client):
+    machine_id = create_machine(client, "Lobby", "Floor 1")
+
+    response = client.post(
+        f"/dashboard/machines/{machine_id}", data={"name": "", "location": "Floor 2"}
+    )
+
+    assert response.status_code == 200
+    assert "Name and location are required" in response.text
+    assert client.get(f"/machines/{machine_id}").json()["name"] == "Lobby"
+
+
+def test_cancel_edit_does_not_change_machine(client):
+    machine_id = create_machine(client, "Lobby", "Floor 1")
+    client.get(f"/dashboard/machines/{machine_id}/edit")
+
+    response = client.get("/dashboard/edit-cancel")
+
+    assert response.status_code == 200
+    assert response.text.strip() == ""
+    assert client.get(f"/machines/{machine_id}").json()["name"] == "Lobby"
