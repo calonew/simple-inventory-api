@@ -113,6 +113,21 @@ def update_inventory(
     return item
 
 
+@app.delete("/machines/{machine_id}/inventory/{product_id}", status_code=204)
+def delete_inventory(machine_id: int, product_id: int, db: Session = Depends(get_db)):
+    get_machine_or_404(db, machine_id)
+    item = (
+        db.query(models.Inventory)
+        .filter_by(machine_id=machine_id, product_id=product_id)
+        .first()
+    )
+    if item is None:
+        raise HTTPException(status_code=404, detail="Inventory item not found")
+
+    db.delete(item)
+    db.commit()
+
+
 @app.get("/low-stock", response_model=list[schemas.InventoryOut])
 def low_stock(machine_id: int | None = None, db: Session = Depends(get_db)):
     query = db.query(models.Inventory).filter(
