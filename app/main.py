@@ -6,6 +6,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import ValidationError
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import models, schemas
@@ -111,21 +112,18 @@ async def add_inventory(
     if await db.get(models.Product, data.product_id) is None:
         raise HTTPException(status_code=404, detail="Product not found")
 
-    result = await db.execute(
-        select(models.Inventory).filter_by(
-            machine_id=machine_id, product_id=data.product_id
-        )
-    )
-    if result.scalars().first() is not None:
-        raise HTTPException(
-            status_code=409, detail="Product already exists in this machine"
-        )
-
     item = models.Inventory(
         machine_id=machine_id, product_id=data.product_id, quantity=data.quantity
     )
     db.add(item)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        # the unique (machine_id, product_id) constraint is the real guard
+        await db.rollback()
+        raise HTTPException(
+            status_code=409, detail="Product already exists in this machine"
+        )
     await db.refresh(item)
     return item
 

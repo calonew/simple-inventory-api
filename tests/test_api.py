@@ -7,7 +7,7 @@ from alembic import command
 from alembic.config import Config
 from fastapi.testclient import TestClient
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app import database
 from app.database import get_db
@@ -446,3 +446,40 @@ def test_cancel_edit_does_not_change_machine(client):
     assert response.status_code == 200
     assert response.text.strip() == ""
     assert client.get(f"/machines/{machine_id}").json()["name"] == "Lobby"
+
+
+def test_duplicate_added_by_another_request_returns_409(client, tmp_path):
+    machine_id = create_machine(client)
+    product_id = create_product(client)
+    db_file = tmp_path / "test.db"
+
+    # Simulates another request inserting the same row after our duplicate
+    # check but before our commit.
+    class RacingSession(AsyncSession):
+        async def commit(self):
+            with sqlite3.connect(db_file) as connection:
+                connection.execute(
+                    "INSERT INTO inventory (machine_id, product_id, quantity) "
+                    "VALUES (?, ?, 1)",
+                    (machine_id, product_id),
+                )
+            await super().commit()
+
+    engine = create_async_engine(f"sqlite+aiosqlite:///{db_file}")
+    RacingSessionMaker = async_sessionmaker(
+        engine, class_=RacingSession, expire_on_commit=False
+    )
+
+    async def racing_get_db():
+        async with RacingSessionMaker() as db:
+            yield db
+
+    app.dependency_overrides[get_db] = racing_get_db
+    racing_client = TestClient(app, raise_server_exceptions=False)
+
+    response = racing_client.post(
+        f"/machines/{machine_id}/inventory",
+        json={"product_id": product_id, "quantity": 5},
+    )
+
+    assert response.status_code == 409
